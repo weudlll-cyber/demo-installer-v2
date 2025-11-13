@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/ma
 To install the helper programs:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/scripts/install_helpers_v1.sh| bash
+curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh| bash
 ```
 
 💡 The script will automatically reboot once to finalize system upgrades.  
