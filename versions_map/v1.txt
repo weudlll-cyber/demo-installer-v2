@@ -1,0 +1,7 @@
+01_prepare_system=01_prepare_system_v1.sh
+02_install_docker=02_install_docker_v1.sh
+03_install_bun=03_install_bun_v1.sh
+04_clone_node=04_clone_node_v1.sh
+05_setup_service=05_setup_service_v1.sh
+06_create_helpers=06_create_helpers_v1.sh
+07_finalize=07_finalize_v1.sh
