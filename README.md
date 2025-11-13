@@ -1,4 +1,4 @@
-🛡️ Demos Node Installer
+# 🛡️ Demos Node Installer
 
 This repository provides a robust, idempotent installer script for setting up a Demos Network node on Ubuntu 24.04+. It handles:
 
@@ -56,13 +56,6 @@ These are installed locally and globally:
 | stop-node        | Stop service, kill processes, free ports         |
 | logs-node        | View recent logs from systemd                    |
 
-Global wrappers (available anywhere):
-
-`bash
-restart-node     # Restart and show status  
-stop-node        # Stop service and clean up  
-logs-node        # Health check with logs  
-`
 
 ---
 
