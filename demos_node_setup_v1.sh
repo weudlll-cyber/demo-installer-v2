@@ -5,8 +5,8 @@
 set -euo pipefail
 
 # GitHub repo info — replace with your actual username and repo
-GITHUB_USER="YOUR_USERNAME"
-GITHUB_REPO="demos-node-installer"
+GITHUB_USER="weudlll-cyber"
+GITHUB_REPO="demos-installer-v2"
 
 # Use fixed version v1
 HELPER_VERSION="v1"
