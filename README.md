@@ -1,6 +1,8 @@
 # 🛡️ Demos Node Installer
 
-This repository provides a robust, idempotent installer script for setting up a Demos Network node on Ubuntu 24.04+. It handles:
+This repository provides a robust, idempotent installer script for setting up a Demos Network node on Ubuntu 24.04+. 
+
+It handles:
 
 - ✅ DNS wait and retry for GitHub access  
 - ✅ apt/dpkg lock detection and recovery  
