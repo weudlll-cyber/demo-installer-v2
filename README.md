@@ -20,13 +20,13 @@ This repository provides a robust, idempotent installer script for setting up a 
 To install a Demos node in one step:
 
 `bash
-curl -fsSL https://raw.githubusercontent.com/weudl/demos-node-installer/main/demosnodesetup_v1.sh | bash
+curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/demosnodesetup_v1.sh | bash
 `
 
 To install the helper programs:
 
 `bash
-bash <(curl -fsSL https://raw.githubusercontent.com/weudl/demos-node-installer/main/scripts/installhelpersv1.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/scripts/installhelpersv1.sh)
 `
 
 💡 The script will automatically reboot once to finalize system upgrades.  
