@@ -94,7 +94,7 @@ if [ "$HEALTH_OK" -ge 2 ]; then log "Node appears HEALTHY (score=$HEALTH_OK)"; e
 EOF
 chmod 755 "$HELPER_DIR/check_demos_node.sh"
 
-# Symlink helpers to /usr/local/bin (overwrite dangling links)
+# Symlink helpers to /usr/local/bin
 ln -sf "$HELPER_DIR/restart_demos_node.sh" "$GLOBAL_BIN/restart_demos_node"
 ln -sf "$HELPER_DIR/backup_demos_keys.sh" "$GLOBAL_BIN/backup_demos_keys"
 ln -sf "$HELPER_DIR/stop_demos_node.sh" "$GLOBAL_BIN/stop_demos_node"
@@ -102,6 +102,8 @@ ln -sf "$HELPER_DIR/check_demos_node.sh" "$GLOBAL_BIN/check_demos_node"
 chmod 755 "$GLOBAL_BIN/restart_demos_node" "$GLOBAL_BIN/backup_demos_keys" "$GLOBAL_BIN/stop_demos_node" "$GLOBAL_BIN/check_demos_node" || true
 
 # Ensure monitor log exists
-touch "$MONITOR_LOG" || true; chown root:root "$MONITOR_LOG" || true; chmod 644 "$MONITOR_LOG" || true
+touch "$MONITOR_LOG" || true
+chown root:root "$MONITOR_LOG" || true
+chmod 644 "$MONITOR_LOG" || true
 
 echo "✅ Helpers installed to $HELPER_DIR and symlinked to $GLOBAL_BIN"
