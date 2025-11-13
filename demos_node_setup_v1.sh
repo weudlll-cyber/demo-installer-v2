@@ -40,6 +40,7 @@ if [ ! -f "$MARKER_DIR/03_install_bun.done" ]; then
   export PATH="$BUN_INSTALL/bin:$PATH"
   echo 'export BUN_INSTALL="$HOME/.bun"' >> ~/.bashrc
   echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> ~/.bashrc
+  source ~/.bashrc
   touch "$MARKER_DIR/03_install_bun.done"
 else
   echo -e "\e[91m[STEP 03] Already completed.\e[0m"
