@@ -1,41 +1,89 @@
 #!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
 
-# Helper script to install global node management commands
+echo -e "\e[91mStarting Demos Node Installer...\e[0m"
 
-set -e
+MARKER_DIR="/root/.demos_node_setup"
+mkdir -p "$MARKER_DIR"
 
-echo -e "\e[91mInstalling helper scripts...\e[0m"
+# === STEP 01: Wait for DNS and GitHub ===
+if [ ! -f "$MARKER_DIR/01_dns_check.done" ]; then
+  echo -e "\e[91mChecking GitHub DNS...\e[0m"
+  until ping -c1 github.com &>/dev/null; do
+    echo -e "\e[91mWaiting for GitHub DNS resolution...\e[0m"
+    sleep 5
+  done
+  touch "$MARKER_DIR/01_dns_check.done"
+fi
 
-# Define install path
-INSTALL_PATH="/usr/local/bin"
+# === STEP 02: Install Docker ===
+if [ ! -f "$MARKER_DIR/02_install_docker.done" ]; then
+  echo -e "\e[91mInstalling Docker...\e[0m"
+  apt-get update
+  apt-get install -y docker.io
+  systemctl enable docker
+  systemctl start docker
+  touch "$MARKER_DIR/02_install_docker.done"
+fi
 
-# Create helper: restart-node
-cat << 'EOF' > "$INSTALL_PATH/restart-node"
-#!/bin/bash
-echo -e "\e[91mRestarting Demos node...\e[0m"
-systemctl restart demos-node.service
-systemctl status demos-node.service --no-pager
+# === STEP 03: Install Bun ===
+if [ ! -f "$MARKER_DIR/03_install_bun.done" ]; then
+  echo -e "\e[91mInstalling Bun...\e[0m"
+  curl -fsSL https://bun.sh/install | bash
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$PATH"
+  echo 'export BUN_INSTALL="$HOME/.bun"' >> ~/.bashrc
+  echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> ~/.bashrc
+  touch "$MARKER_DIR/03_install_bun.done"
+fi
+
+# === STEP 04: Clone Demos Node Repo ===
+if [ ! -f "$MARKER_DIR/04_clone_repo.done" ]; then
+  echo -e "\e[91mCloning Demos Node repository...\e[0m"
+  git clone https://github.com/weudl/demos-node /opt/demos-node
+  cd /opt/demos-node
+  bun install
+  touch "$MARKER_DIR/04_clone_repo.done"
+fi
+
+# === STEP 05: Create Systemd Service ===
+if [ ! -f "$MARKER_DIR/05_systemd_service.done" ]; then
+  echo -e "\e[91mCreating systemd service...\e[0m"
+  cat > /etc/systemd/system/demos-node.service <<EOF
+[Unit]
+Description=Demos Node Service
+After=network.target
+
+[Service]
+ExecStart=/opt/demos-node/run
+Restart=always
+User=root
+Environment=NODE_ENV=production
+WorkingDirectory=/opt/demos-node
+
+[Install]
+WantedBy=multi-user.target
 EOF
+  systemctl daemon-reexec
+  systemctl daemon-reload
+  systemctl enable demos-node.service
+  systemctl start demos-node.service
+  touch "$MARKER_DIR/05_systemd_service.done"
+fi
 
-# Create helper: stop-node
-cat << 'EOF' > "$INSTALL_PATH/stop-node"
-#!/bin/bash
-echo -e "\e[91mStopping Demos node...\e[0m"
-systemctl stop demos-node.service
-pkill -f demos-node || true
-fuser -k 3000/tcp || true
-EOF
+# === STEP 06: Install Helper Scripts ===
+if [ ! -f "$MARKER_DIR/06_install_helpers.done" ]; then
+  echo -e "\e[91mInstalling helper scripts...\e[0m"
+  bash <(curl -fsSL https://raw.githubusercontent.com/weudl/demos-node-installer/main/scripts/install_helpers.sh)
+  touch "$MARKER_DIR/06_install_helpers.done"
+fi
 
-# Create helper: logs-node
-cat << 'EOF' > "$INSTALL_PATH/logs-node"
-#!/bin/bash
-echo -e "\e[91mShowing Demos node logs...\e[0m"
-journalctl -u demos-node.service -n 100 --no-pager
-EOF
+# === STEP 07: Reboot Once ===
+if [ ! -f "$MARKER_DIR/07_reboot_once.done" ]; then
+  echo -e "\e[91mRebooting system to finalize setup...\e[0m"
+  touch "$MARKER_DIR/07_reboot_once.done"
+  reboot
+fi
 
-# Make all scripts executable
-chmod +x "$INSTALL_PATH/restart-node"
-chmod +x "$INSTALL_PATH/stop-node"
-chmod +x "$INSTALL_PATH/logs-node"
-
-echo -e "\e[92mHelper scripts installed successfully.\e[0m"
+echo -e "\e[92m✅ Demos Node installation complete.\e[0m"
