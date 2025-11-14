@@ -4,7 +4,7 @@
 
 set -euo pipefail
 IFS=$'\n\t'
-
+set -x
 SERVICE_NAME="demos-node"
 HTTP_ENDPOINT="http://localhost:8080/health"  # Optional: adjust if your node exposes a health route
 
