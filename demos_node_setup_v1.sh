@@ -1,32 +1,52 @@
 #!/bin/bash
+# Enforce strict error handling: exit on error, undefined variables, and pipeline failures
 set -euo pipefail
 IFS=$'\n\t'
 
+# === STARTUP ===
 echo -e "\e[91mStarting Demos Node Installer...\e[0m"
 
+# Ensure script is run as root
+if [ "$EUID" -ne 0 ]; then
+  echo -e "\e[91m❌ This script must be run as root.\e[0m"
+  echo -e "\e[91mPlease run:\e[0m"
+  echo -e "\e[91msudo bash demos_node_setup_v1.sh\e[0m"
+  exit 1
+fi
+
+# Create marker directory to track completed steps
 MARKER_DIR="/root/.demos_node_setup"
 mkdir -p "$MARKER_DIR"
 
-# === STEP 00: Smart Kernel Reboot Check ===
-if [ ! -f "$MARKER_DIR/00_kernel_check.done" ]; then
-  CURRENT_KERNEL=$(uname -r)
-  LATEST_KERNEL=$(dpkg -l | awk '/linux-image-[0-9]+/{print $2}' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | sort -V | tail -n1 || true)
+# Prevent concurrent execution
+LOCK_FILE="$MARKER_DIR/installer.lock"
+if [ -f "$LOCK_FILE" ]; then
+  echo -e "\e[91m❌ Installer is already running or was interrupted.\e[0m"
+  echo -e "\e[91mTo retry, run:\e[0m"
+  echo -e "\e[91mrm -f $LOCK_FILE\e[0m"
+  exit 1
+fi
+touch "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
 
-  if [[ -n "$LATEST_KERNEL" && "$CURRENT_KERNEL" != "$LATEST_KERNEL" ]]; then
-    echo -e "\e[91m[STEP 00] A newer kernel ($LATEST_KERNEL) is installed but not active.\e[0m"
-    echo -e "\e[91mSystem will reboot in 10 seconds to apply the kernel update.\e[0m"
-    echo -e "\e[91mAfter reboot you must rerun this installer script to continue the setup.\e[0m"
-    sleep 10
-    touch "$MARKER_DIR/00_kernel_check.done"
-    reboot
-    exit 0
-  else
-    echo -e "\e[91m[STEP 00] Kernel already up to date.\e[0m"
-    touch "$MARKER_DIR/00_kernel_check.done"
-  fi
+# Sanitize environment: remove proxy variables that could interfere with downloads
+unset $(env | grep -E '^(http_proxy|https_proxy|no_proxy)=' | cut -d= -f1)
+
+# === STEP 00: Repair dpkg if interrupted ===
+if [ -f /var/lib/dpkg/lock ] || [ -f /var/lib/dpkg/lock-frontend ]; then
+  echo -e "\e[91m🔒 dpkg lock detected. Waiting for other processes to finish...\e[0m"
+  sleep 10
 fi
 
-# === STEP 01: Wait for DNS and GitHub ===
+if dpkg --audit | grep -q .; then
+  echo -e "\e[91m⚠️ dpkg was interrupted. Attempting automatic repair...\e[0m"
+  echo -e "\e[91mIf this fails, run manually:\e[0m"
+  echo -e "\e[91msudo dpkg --configure -a\e[0m"
+  dpkg --configure -a
+  echo -e "\e[91m✅ dpkg repair completed.\e[0m"
+fi
+
+# === STEP 01: DNS Check ===
 if [ ! -f "$MARKER_DIR/01_dns_check.done" ]; then
   echo -e "\e[91m[STEP 01] Checking GitHub DNS...\e[0m"
   until ping -c1 github.com &>/dev/null; do
@@ -49,6 +69,8 @@ if [ ! -f "$MARKER_DIR/02_install_docker.done" ]; then
     echo -e "\e[91m✅ Docker installed successfully.\e[0m"
   else
     echo -e "\e[91m❌ Docker installation failed.\e[0m"
+    echo -e "\e[91mTry manually:\e[0m"
+    echo -e "\e[91msudo apt-get install -y docker.io\e[0m"
     exit 1
   fi
 else
@@ -57,7 +79,7 @@ fi
 
 # === STEP 03: Install Bun ===
 if [ ! -f "$MARKER_DIR/03_install_bun.done" ]; then
-  echo -e "\e[91m[STEP 03] Installing Bun...\e[0m"
+  echo -e "\e[91m[STEP 03] Installing Bun (JavaScript runtime)...\e[0m"
   apt-get install -y unzip
   curl -fsSL https://bun.sh/install | bash
   export BUN_INSTALL="$HOME/.bun"
@@ -69,17 +91,19 @@ if [ ! -f "$MARKER_DIR/03_install_bun.done" ]; then
     echo -e "\e[91m✅ Bun installed successfully.\e[0m"
   else
     echo -e "\e[91m❌ Bun installation failed.\e[0m"
+    echo -e "\e[91mTry manually:\e[0m"
+    echo -e "\e[91mcurl -fsSL https://bun.sh/install | bash\e[0m"
     exit 1
   fi
 else
   echo -e "\e[91m[STEP 03] Already completed.\e[0m"
 fi
 
-# === STEP 04: Clone Testnet Node Repo ===
+# === STEP 04: Clone Node Repository ===
 if [ ! -f "$MARKER_DIR/04_clone_repo.done" ]; then
-  echo -e "\e[91m[STEP 04] Cloning Testnet Node repository...\e[0m"
+  echo -e "\e[91m[STEP 04] Cloning Demos Node repository...\e[0m"
   if [ -d "/opt/demos-node/.git" ]; then
-    echo -e "\e[91m[STEP 04] Repo already exists at /opt/demos-node. Skipping clone.\e[0m"
+    echo -e "\e[91mRepo already exists. Skipping clone.\e[0m"
   else
     rm -rf /opt/demos-node 2>/dev/null || true
     git clone https://github.com/kynesyslabs/node.git /opt/demos-node
@@ -88,9 +112,11 @@ if [ ! -f "$MARKER_DIR/04_clone_repo.done" ]; then
   bun install
   if [ -f "run" ]; then
     touch "$MARKER_DIR/04_clone_repo.done"
-    echo -e "\e[91m✅ Repository cloned and dependencies installed.\e[0m"
+    echo -e "\e[91m✅ Node repository cloned and dependencies installed.\e[0m"
   else
-    echo -e "\e[91m❌ Node repo setup failed.\e[0m"
+    echo -e "\e[91m❌ Node setup failed. Missing run script.\e[0m"
+    echo -e "\e[91mCheck manually:\e[0m"
+    echo -e "\e[91mls -l /opt/demos-node/run\e[0m"
     exit 1
   fi
 else
@@ -99,7 +125,7 @@ fi
 
 # === STEP 05: Create Systemd Service ===
 if [ ! -f "$MARKER_DIR/05_systemd_service.done" ]; then
-  echo -e "\e[91m[STEP 05] Creating systemd service...\e[0m"
+  echo -e "\e[91m[STEP 05] Creating systemd service for Demos Node...\e[0m"
   cat > /etc/systemd/system/demos-node.service <<EOF
 [Unit]
 Description=Demos Node Service
@@ -125,7 +151,9 @@ EOF
     touch "$MARKER_DIR/05_systemd_service.done"
     echo -e "\e[91m✅ Demos Node service is running.\e[0m"
   else
-    echo -e "\e[91m❌ Demos Node service failed to start.\e[0m"
+    echo -e "\e[91m❌ Service failed to start.\e[0m"
+    echo -e "\e[91mCheck status manually:\e[0m"
+    echo -e "\e[91msystemctl status demos-node.service --no-pager -l\e[0m"
     exit 1
   fi
 else
@@ -134,16 +162,6 @@ fi
 
 # === STEP 06: Install Helper Scripts ===
 if [ ! -f "$MARKER_DIR/06_install_helpers.done" ]; then
-  echo -e "\e[91m[STEP 06] Installing helper scripts...\e[0m"
+  echo -e "\e[91m[STEP 06] Installing helper scripts from GitHub...\e[0m"
   if curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh | bash; then
-    touch "$MARKER_DIR/06_install_helpers.done"
-    echo -e "\e[91m✅ Helper scripts installed.\e[0m"
-  else
-    echo -e "\e[91m❌ Failed to install helper scripts.\e[0m"
-    exit 1
-  fi
-else
-  echo -e "\e[91m[STEP 06] Already completed.\e[0m"
-fi
-
-echo -e "\e[91m✅ Demos Node installation complete.\e[0m"
+    touch "$MARKER
