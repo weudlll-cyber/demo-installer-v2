@@ -14,15 +14,13 @@ It includes:
 
 🚀 Quick Start
 🧱 Install the Demos Node
-```
-bash
+```bash
 curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/demos_node_setup_v1.sh | bash
 ```
 
 
 🧰 Install the Helper Tools
-```
-bash
+```bash
 curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh | bash
 ```
 
