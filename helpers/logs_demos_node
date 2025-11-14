@@ -1,39 +1,129 @@
 #!/bin/bash
-# This helper script shows recent logs from the Demos Node systemd service.
-# It helps users quickly debug or monitor the node's behavior.
+# Unified helper script for inspecting and repairing the Demos Node systemd service.
+# Supports: --status, --logs=N, --health, --autorestart, --restart
 
 set -euo pipefail
 IFS=$'\n\t'
 
 SERVICE_NAME="demos-node"
+HTTP_ENDPOINT="http://localhost:8080/health"  # Adjust if needed
 
-echo -e "\e[91m📜 Showing recent logs for Demos Node service: $SERVICE_NAME\e[0m"
-
-# === Check if systemd is available ===
+# === Systemd & journalctl checks ===
 if ! command -v systemctl &>/dev/null; then
   echo -e "\e[91m❌ systemctl not found. This system may not support systemd.\e[0m"
   exit 1
 fi
-
-# === Check if journalctl is available ===
 if ! command -v journalctl &>/dev/null; then
   echo -e "\e[91m❌ journalctl not found. Cannot display logs.\e[0m"
-  echo -e "\e[91mMake sure systemd-journald is installed and available.\e[0m"
   exit 1
 fi
-
-# === Check if service exists ===
 if ! systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
   echo -e "\e[91m❌ Service $SERVICE_NAME not found.\e[0m"
-  echo -e "\e[91mMake sure the node was installed and the service was created.\e[0m"
   exit 1
 fi
 
-# === Show logs from the last 10 minutes ===
-echo -e "\e[91m🕒 Logs from the last 10 minutes:\e[0m"
-journalctl -u "$SERVICE_NAME" --no-pager --since "10 minutes ago" || {
-  echo -e "\e[91m❌ Failed to retrieve logs.\e[0m"
-  echo -e "\e[91mTry manually:\e[0m"
-  echo -e "\e[91msudo journalctl -u $SERVICE_NAME --no-pager --since \"10 minutes ago\"\e[0m"
-  exit 1
+# === Functions ===
+restart_node() {
+  echo -e "\e[91m🔄 Attempting to restart $SERVICE_NAME...\e[0m"
+  systemctl restart "$SERVICE_NAME" && echo -e "\e[91m✅ Restart successful.\e[0m" || {
+    echo -e "\e[91m❌ Restart failed. Try manually:\e[0m"
+    echo -e "\e[91msudo systemctl restart $SERVICE_NAME\e[0m"
+    exit 1
+  }
 }
+
+check_health() {
+  echo -e "\e[91m🔍 Performing detailed health check...\e[0m"
+  STATUS=$(systemctl is-active "$SERVICE_NAME")
+  PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
+
+  echo -e "\e[91m🧠 Systemd Status: $STATUS\e[0m"
+  case "$STATUS" in
+    active)
+      echo -e "\e[91m✅ Service is running normally.\e[0m"
+      ;;
+    inactive)
+      echo -e "\e[91m⚠️ Service is installed but not running. Attempting auto-repair...\e[0m"
+      restart_node
+      ;;
+    failed)
+      echo -e "\e[91m❌ Service has crashed. Attempting auto-repair...\e[0m"
+      restart_node
+      ;;
+    activating)
+      echo -e "\e[91m⏳ Service is starting. Wait a moment and recheck.\e[0m"
+      ;;
+    deactivating)
+      echo -e "\e[91m⏸️ Service is shutting down.\e[0m"
+      ;;
+    *)
+      echo -e "\e[91m❓ Unknown status: $STATUS\e[0m"
+      ;;
+  esac
+
+  if [ "$PID" -gt 0 ]; then
+    echo -e "\e[91m🧬 Main PID: $PID (process is alive)\e[0m"
+  else
+    echo -e "\e[91m⚠️ No active process found.\e[0m"
+  fi
+
+  echo -e "\e[91m🌐 Checking HTTP endpoint: $HTTP_ENDPOINT\e[0m"
+  if curl -fs "$HTTP_ENDPOINT" &>/dev/null; then
+    echo -e "\e[91m✅ HTTP endpoint is responsive.\e[0m"
+  else
+    echo -e "\e[91m⚠️ HTTP endpoint is not responding. Attempting auto-repair...\e[0m"
+    restart_node
+    sleep 2
+    if curl -fs "$HTTP_ENDPOINT" &>/dev/null; then
+      echo -e "\e[91m✅ HTTP endpoint recovered.\e[0m"
+    else
+      echo -e "\e[91m❌ Still unresponsive. Check node config or logs:\e[0m"
+      echo -e "\e[91msudo journalctl -u $SERVICE_NAME --no-pager --since \"10 minutes ago\"\e[0m"
+    fi
+  fi
+}
+
+# === Main ===
+case "${1:-}" in
+  --status)
+    STATUS=$(systemctl is-active "$SERVICE_NAME")
+    PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
+    echo -e "\e[91m🔍 Status: $STATUS\e[0m"
+    echo -e "\e[91m🧬 PID: $PID\e[0m"
+    ;;
+
+  --logs=*)
+    COUNT="${1#--logs=}"
+    echo -e "\e[91m📜 Showing last $COUNT lines of logs...\e[0m"
+    journalctl -u "$SERVICE_NAME" --no-pager -n "$COUNT"
+    ;;
+
+  --health)
+    check_health
+    ;;
+
+  --autorestart)
+    echo -e "\e[91m🔍 Checking health before auto-restart...\e[0m"
+    if curl -fs "$HTTP_ENDPOINT" &>/dev/null; then
+      echo -e "\e[91m✅ Node is healthy. No restart needed.\e[0m"
+    else
+      echo -e "\e[91m⚠️ Unhealthy. Restarting...\e[0m"
+      restart_node
+    fi
+    ;;
+
+  --restart)
+    restart_node
+    ;;
+
+  *)
+    echo -e "\e[91m❌ Unknown command: $1\e[0m"
+    echo -e "\e[91mUsage:\e[0m"
+    echo -e "\e[91m  logs_demos_node --status\e[0m"
+    echo -e "\e[91m  logs_demos_node --logs=100\e[0m"
+    echo -e "\e[91m  logs_demos_node --health\e[0m"
+    echo -e "\e[91m  logs_demos_node --autorestart\e[0m"
+    echo -e "\e[91m  logs_demos_node --restart\e[0m"
+    exit 1
+    ;;
+esac
