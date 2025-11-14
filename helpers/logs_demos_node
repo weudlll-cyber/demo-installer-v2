@@ -89,7 +89,7 @@ check_health() {
 }
 
 # === Main ===
-case "${1:-}" in
+case "${1:-"--status"}" in
   --status)
     STATUS=$(systemctl is-active "$UNIT_NAME")
     PID=$(systemctl show -p MainPID "$UNIT_NAME" | cut -d= -f2 || echo 0)
