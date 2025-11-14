@@ -2,7 +2,7 @@
 # This helper script performs a detailed health check on the Demos Node systemd service.
 # It explains the current status, PID, and optionally checks the HTTP endpoint.
 
-set -u  # safer than -euo pipefail for interactive diagnostics
+set -u
 IFS=$'\n\t'
 
 SERVICE_NAME="demos-node"
@@ -24,7 +24,7 @@ if ! command -v journalctl &>/dev/null; then
 fi
 
 # === Check if service exists ===
-if ! systemctl status "$UNIT_NAME" &>/dev/null; then
+if ! systemctl show "$UNIT_NAME" &>/dev/null; then
   echo -e "\e[91m❌ Service $UNIT_NAME not found.\e[0m"
   echo -e "\e[91mMake sure the node was installed and the service was created.\e[0m"
   echo -e "\e[91mTry:\e[0m"
