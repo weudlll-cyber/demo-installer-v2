@@ -96,7 +96,7 @@ Restart manually:
 `sudo systemctl restart demos-node`
 
 
-
+```
 📁 Repository Structure
 ├── demos_node_setup_v1.sh         # Main installer (orchestrates all scripts)
 ├── install_helpers_v1.sh          # Standalone installer for helper tools
@@ -112,6 +112,7 @@ Restart manually:
 │   ├── 05_create_service.sh
 │   ├── 06_create_helpers_v1.sh
 │   └── 07_finalize_v1.sh
+```
 
 
 Each script in the scripts/ folder is:
