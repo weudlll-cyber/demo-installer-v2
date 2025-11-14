@@ -11,7 +11,6 @@ MARKER_DIR="/root/.demos_node_setup"
 STEP_MARKER="$MARKER_DIR/07_finalize.done"
 mkdir -p "$MARKER_DIR"
 
-# === Skip if already completed ===
 if [ -f "$STEP_MARKER" ]; then
   echo -e "\e[91m✅ [07] Finalization already completed. Skipping...\e[0m"
   exit 0
@@ -27,22 +26,39 @@ echo -e "\e[91mrestart_demos_node\e[0m"
 echo -e "\e[91m📦 View logs:\e[0m"
 echo -e "\e[91msudo journalctl -u demos-node --no-pager --since \"10 minutes ago\"\e[0m"
 
+# === Detect port conflicts ===
+DEFAULT_NODE_PORT=53550
+DEFAULT_DB_PORT=5332
+
+echo -e "\e[91m🔍 Checking for port conflicts...\e[0m"
+if ss -tuln | grep -q ":$DEFAULT_NODE_PORT "; then
+  echo -e "\e[91m⚠️ Port $DEFAULT_NODE_PORT is already in use.\e[0m"
+  read -p "👉 Enter a different port for the node: " CUSTOM_NODE_PORT
+else
+  CUSTOM_NODE_PORT=$DEFAULT_NODE_PORT
+fi
+
+if ss -tuln | grep -q ":$DEFAULT_DB_PORT "; then
+  echo -e "\e[91m⚠️ Port $DEFAULT_DB_PORT is already in use.\e[0m"
+  read -p "👉 Enter a different port for PostgreSQL: " CUSTOM_DB_PORT
+else
+  CUSTOM_DB_PORT=$DEFAULT_DB_PORT
+fi
+
 # === Configure .env ===
 if [ ! -f .env ]; then
   echo -e "\e[91m🔧 Generating .env configuration...\e[0m"
   cp env.example .env
 
   PUBLIC_IP=$(curl -s ifconfig.me || echo "localhost")
-  DEFAULT_URL="http://$PUBLIC_IP:53550"
+  DEFAULT_URL="http://$PUBLIC_IP:$CUSTOM_NODE_PORT"
 
   echo -e "\e[91m🌐 Detected public IP: $PUBLIC_IP\e[0m"
   echo -e "\e[91m🔧 Setting EXPOSED_URL to: $DEFAULT_URL\e[0m"
 
-  if grep -q '^EXPOSED_URL=' .env; then
-    sed -i "s|^EXPOSED_URL=.*|EXPOSED_URL=$DEFAULT_URL|" .env
-  else
-    echo "EXPOSED_URL=$DEFAULT_URL" >> .env
-  fi
+  sed -i "s|^EXPOSED_URL=.*|EXPOSED_URL=$DEFAULT_URL|" .env || echo "EXPOSED_URL=$DEFAULT_URL" >> .env
+  sed -i "s|^NODE_PORT=.*|NODE_PORT=$CUSTOM_NODE_PORT|" .env || echo "NODE_PORT=$CUSTOM_NODE_PORT" >> .env
+  sed -i "s|^DB_PORT=.*|DB_PORT=$CUSTOM_DB_PORT|" .env || echo "DB_PORT=$CUSTOM_DB_PORT" >> .env
 else
   echo -e "\e[91m✅ .env already exists. Skipping...\e[0m"
 fi
@@ -55,14 +71,10 @@ else
   echo -e "\e[91m✅ demos_peerlist.json already exists. Skipping...\e[0m"
 fi
 
-# === Optional peer entry ===
-read -p "👉 Enter known peer public key (or leave blank to skip): " PEER_KEY
-read -p "👉 Enter peer URL (e.g. http://peer.example.com): " PEER_URL
-
-if [[ -n "$PEER_KEY" && -n "$PEER_URL" ]]; then
-  echo -e "\e[91m🔗 Adding peer to demos_peerlist.json...\e[0m"
-  jq --arg key "$PEER_KEY" --arg url "$PEER_URL" '. + {($key): $url}' demos_peerlist.json > tmp.json && mv tmp.json demos_peerlist.json
-fi
+# === Peer list guidance ===
+echo -e "\e[91m📡 To join a network, edit demos_peerlist.json and add known peers in this format:\e[0m"
+echo -e "\e[91m  {\n    \"<publickey>\": \"http://<peer-url>:<port>\"\n  }\e[0m"
+echo -e "\e[91mYou can add multiple peers separated by commas inside the JSON object.\e[0m"
 
 # === Backup identity keys ===
 echo -e "\e[91m📁 Backing up identity keys...\e[0m"
