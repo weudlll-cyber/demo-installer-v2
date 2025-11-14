@@ -2,7 +2,7 @@
 # This helper script performs a detailed health check on the Demos Node systemd service.
 # It explains the current status, PID, and optionally checks the HTTP endpoint.
 
-set -euo pipefail
+set -u  # safer than -euo pipefail for interactive diagnostics
 IFS=$'\n\t'
 
 SERVICE_NAME="demos-node"
