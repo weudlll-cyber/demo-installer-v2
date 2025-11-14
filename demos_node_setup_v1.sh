@@ -117,7 +117,7 @@ fi
 # === STEP 06: Install Helper Scripts ===
 if [ ! -f "$MARKER_DIR/06_install_helpers.done" ]; then
   echo -e "\e[91m[STEP 06] Installing helper scripts...\e[0m"
-  bash <(curl -fsSL https://raw.githubusercontent.com/weudl/demos-node-installer/main/scripts/install_helpers.sh)
+  bash <(curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh)
   touch "$MARKER_DIR/06_install_helpers.done"
 else
   echo -e "\e[91m[STEP 06] Already completed.\e[0m"
