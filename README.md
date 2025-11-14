@@ -1,171 +1,123 @@
 # 🛡️ Demos Node Installer
-
-This repository provides a robust, idempotent installer script for setting up a Demos Network node on Ubuntu 24.04+. 
-
-It handles:
-
-- ✅ DNS wait and retry for GitHub access  
-- ✅ apt/dpkg lock detection and recovery  
-- ✅ Bun and Docker installation  
-- ✅ Node repo cloning and dependency install  
-- ✅ Systemd service creation  
-- ✅ Public IP detection and peerlist setup  
-- ✅ Key backup, restart, stop, and health-check helpers  
-- ✅ One-time reboot with resume logic  
-- ✅ Smart skipping of already-installed components  
-- ✅ Bright red output for all user-facing messages  
-
----
+This repository provides a robust, idempotent installer system for setting up a Demos Network node on Ubuntu 24.04+.
+It includes:
+- ✅ DNS wait and retry for GitHub access
+- ✅ apt/dpkg lock detection and recovery
+- ✅ Bun and Docker installation
+- ✅ Node repo cloning and dependency install
+- ✅ Systemd service creation
+- ✅ Public IP detection and peerlist setup
+- ✅ Key backup, restart, stop, and health-check helpers
+- ✅ One-time reboot with resume logic
+- ✅ Smart skipping of already-installed components
+- ✅ Bright red output for all user-facing messages
 
 🚀 Quick Start
-
-To install a Demos node in one step:
-
-```bash
+🧱 Install the Demos Node
+```
+bash
 curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/demos_node_setup_v1.sh | bash
 ```
 
-To install the helper programs:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh| bash
+
+🧰 Install the Helper Tools
+```
+bash
+curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh | bash
 ```
 
-💡 The script will automatically reboot once to finalize system upgrades.  
+
+💡 The installer will automatically reboot once to finalize system upgrades.
 After reboot, re-run the same command or execute the script locally if you saved it.
 
----
-
 🧠 Features
+- 🛡️ Idempotent: Safe to re-run. Skips steps already completed.
+- 🐳 Container-aware: Skips Docker install if already running.
+- 🔁 Reboot-aware: Automatically reboots once and resumes setup.
+- 🟥 Red output: All user-facing messages are printed in bright red.
+- 🧩 Marker-based logic: Each script writes a .done marker to /root/.demos_node_setup/
+- 🩺 Health check: Monitors service status, logs, PID, and optional HTTP endpoint
+- 🧰 Helper scripts: Easy commands to manage your node
 
-- 🛡️ Idempotent: Safe to re-run. Skips steps already completed.  
-- 🐳 Container support: Skips installs if Docker is already running.  
-- 🔁 Reboot-aware: Automatically reboots once and resumes setup.  
-- 🟥 Red output: All user-facing messages are printed in red.  
-- 🧩 Marker-based logic: Each step writes a marker file.  
-- 🩺 Health check script: Monitors service status, logs, PID, and optional HTTP endpoint.  
-
----
-
-🧰 Helper Scripts
-
-These are installed locally and globally:
-
-| Script             | Description                                      |
-|--------------------|--------------------------------------------------|
-| demosnodesetup | Full installer script                            |
-| restart-node     | Restart the node and show systemd status         |
-| stop-node        | Stop service, kill processes, free ports         |
-| logs-node        | View recent logs from systemd                    |
+🧰 Helper Commands
+Once installed, you can use the following commands from any terminal:
+🔍 Check Node Status
+check_demos_node
 
 
----
+Shows:
+- Systemd status (active, inactive, failed, etc.)
+- Main PID
+- Optional HTTP health check
+- Recent logs if failed
+- Recovery hints and restart suggestions
 
-🔐 After Install
+🔄 Restart Node
+`restart_demos_node`
 
-To restart and monitor logs:
 
-`bash
-restart-node
-`
+Restarts the systemd service and confirms success.
 
-To stop your Demos node:
+📊 Unified Log & Health Tool
+`logs_demos_node --status`
 
-`bash
-stop-node
-`
 
-To check node logs:
+Shows systemd status and PID.
+`logs_demos_node --logs=100`
 
-`bash
-logs-node
-`
 
-Node source: github.com/weudl/demos-node
+Shows the last 100 lines of logs.
+`logs_demos_node --health`
 
----
 
-🩺 Health Check Usage
+Performs a full health check:
+- Systemd status + explanation
+- PID check
+- HTTP endpoint check
+- Auto-repair if service is inactive or failed
+`logs_demos_node --autorestart`
 
-Show systemd status:
 
-`bash
-logs-node --status
-`
+Restarts the node only if unhealthy.``logs_demos_node --restart`
 
-Tail last 100 lines of journal:
 
-`bash
-logs-node --logs=100
-`
+Force restarts the node.
 
-Check service + PID + optional HTTP endpoint:
+🧪 Recovery Tips
+If something fails:
+`sudo bash demos_node_setup_v1.sh`
 
-`bash
-logs-node --health
-`
 
-Restart node if unhealthy:
+Check logs:
+`sudo journalctl -u demos-node --no-pager --since "10 minutes ago"`
 
-`bash
-logs-node --autorestart
-`
 
-Force restart:
+Restart manually:
+`sudo systemctl restart demos-node`
 
-`bash
-logs-node --restart
-`
 
-Monitor logs are stored at /var/log/demosnodemonitor.log.
 
----
+📁 Repository Structure
+├── demos_node_setup_v1.sh         # Main installer (orchestrates all scripts)
+├── install_helpers_v1.sh          # Standalone installer for helper tools
+├── helpers/                       # Executable helper scripts
+│   ├── check_demos_node
+│   ├── restart_demos_node
+│   └── logs_demos_node
+├── scripts/                       # Modular installation scripts (01–07)
+│   ├── 01_setup_env.sh
+│   ├── 02_install_bun.sh
+│   ├── 03_install_docker.sh
+│   ├── 04_clone_node_repo.sh
+│   ├── 05_create_service.sh
+│   ├── 06_create_helpers_v1.sh
+│   └── 07_finalize_v1.sh
 
-🛠️ Troubleshooting
+
+Each script in the scripts/ folder is:
+- ✅ Executable independently
+- ✅ Idempotent (safe to re-run)
+- ✅ Marked with a .done file in /root/.demos_node_setup/
+- ✅ Designed to be orchestrated by demos_node_setup_v1.sh
 
-If the installer exits early or skips steps:
 
-- Check /root/.demosnodesetup/ for marker files  
-- Delete specific markers to re-run steps:
-
-`bash
-rm /root/.demosnodesetup/02installdocker_v1.done
-`
-
-If apt locks persist:
-
-- Wait for background processes to finish  
-- Re-run the script manually
-
-If Bun blocks postinstalls:
-
-`bash
-cd /opt/demos-node
-bun pm untrusted
-bun install
-`
-
-To inspect logs:
-
-`bash
-journalctl -u demos-node.service -n 100 --no-pager
-`
-
----
-
-🧪 Development Notes
-
-This script is designed for reproducibility and operational clarity:
-
-- All critical steps are marked and logged  
-- Reboot logic is tracked via marker files  
-- All user-facing output is bright red for visibility  
-- Safe to run manually or via curl  
-- Health check script logs to /var/log/demosnodemonitor.log
-
----
-
-🧑‍💻 Maintainer
-
-Built and maintained by Weudl  
-Focused on privacy infrastructure, reproducible workflows, and community education.
