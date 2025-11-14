@@ -6,6 +6,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 SERVICE_NAME="demos-node"
+UNIT_NAME="${SERVICE_NAME}.service"
 HTTP_ENDPOINT="http://localhost:8080/health"  # Adjust if needed
 
 # === Systemd & journalctl checks ===
@@ -17,25 +18,29 @@ if ! command -v journalctl &>/dev/null; then
   echo -e "\e[91m❌ journalctl not found. Cannot display logs.\e[0m"
   exit 1
 fi
-if ! systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
-  echo -e "\e[91m❌ Service $SERVICE_NAME not found.\e[0m"
+if ! systemctl status "$UNIT_NAME" &>/dev/null; then
+  echo -e "\e[91m❌ Service $UNIT_NAME not found.\e[0m"
+  echo -e "\e[91mMake sure the node was installed and the service was created.\e[0m"
+  echo -e "\e[91mTry:\e[0m"
+  echo -e "\e[91msudo systemctl daemon-reload && sudo systemctl enable $UNIT_NAME && sudo systemctl start $UNIT_NAME\e[0m"
   exit 1
 fi
 
 # === Functions ===
 restart_node() {
-  echo -e "\e[91m🔄 Attempting to restart $SERVICE_NAME...\e[0m"
-  systemctl restart "$SERVICE_NAME" && echo -e "\e[91m✅ Restart successful.\e[0m" || {
+  echo -e "\e[91m🔄 Attempting to restart $UNIT_NAME...\e[0m"
+  systemctl restart "$UNIT_NAME" && echo -e "\e[91m✅ Restart successful.\e[0m" || {
     echo -e "\e[91m❌ Restart failed. Try manually:\e[0m"
-    echo -e "\e[91msudo systemctl restart $SERVICE_NAME\e[0m"
+    echo -e "\e[91msudo systemctl restart $UNIT_NAME\e[0m"
     exit 1
   }
 }
 
 check_health() {
   echo -e "\e[91m🔍 Performing detailed health check...\e[0m"
-  STATUS=$(systemctl is-active "$SERVICE_NAME")
-  PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
+  STATUS=$(systemctl is-active "$UNIT_NAME")
+  PID=$(systemctl show -p MainPID "$UNIT_NAME" | cut -d= -f2 || echo 0)
+  PID=${PID:-0}
 
   echo -e "\e[91m🧠 Systemd Status: $STATUS\e[0m"
   case "$STATUS" in
@@ -61,7 +66,7 @@ check_health() {
       ;;
   esac
 
-  if [ "$PID" -gt 0 ]; then
+  if [[ "$PID" =~ ^[0-9]+$ ]] && [ "$PID" -gt 0 ]; then
     echo -e "\e[91m🧬 Main PID: $PID (process is alive)\e[0m"
   else
     echo -e "\e[91m⚠️ No active process found.\e[0m"
@@ -78,7 +83,7 @@ check_health() {
       echo -e "\e[91m✅ HTTP endpoint recovered.\e[0m"
     else
       echo -e "\e[91m❌ Still unresponsive. Check node config or logs:\e[0m"
-      echo -e "\e[91msudo journalctl -u $SERVICE_NAME --no-pager --since \"10 minutes ago\"\e[0m"
+      echo -e "\e[91msudo journalctl -u $UNIT_NAME --no-pager --since \"10 minutes ago\"\e[0m"
     fi
   fi
 }
@@ -86,8 +91,9 @@ check_health() {
 # === Main ===
 case "${1:-}" in
   --status)
-    STATUS=$(systemctl is-active "$SERVICE_NAME")
-    PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
+    STATUS=$(systemctl is-active "$UNIT_NAME")
+    PID=$(systemctl show -p MainPID "$UNIT_NAME" | cut -d= -f2 || echo 0)
+    PID=${PID:-0}
     echo -e "\e[91m🔍 Status: $STATUS\e[0m"
     echo -e "\e[91m🧬 PID: $PID\e[0m"
     ;;
@@ -95,7 +101,7 @@ case "${1:-}" in
   --logs=*)
     COUNT="${1#--logs=}"
     echo -e "\e[91m📜 Showing last $COUNT lines of logs...\e[0m"
-    journalctl -u "$SERVICE_NAME" --no-pager -n "$COUNT"
+    journalctl -u "$UNIT_NAME" --no-pager -n "$COUNT"
     ;;
 
   --health)
