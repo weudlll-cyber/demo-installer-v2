@@ -1,34 +1,30 @@
 #!/bin/bash
-# 07_finalize_v1.sh
-# Finalizes the setup process and offers optional reboot
+# This script completes the Demos Node installation and reminds the user how to manage the node.
 
 set -euo pipefail
+IFS=$'\n\t'
 
-MARKER="/root/.demos_node_setup/07_finalize_v1.done"
+echo -e "\e[91m🎉 [07] Finalizing installation...\e[0m"
+echo -e "\e[91mYou're almost done! Let's wrap things up.\e[0m"
 
-if [ -f "$MARKER" ]; then
-  echo "✅ Finalization already completed. Skipping."
+MARKER_DIR="/root/.demos_node_setup"
+STEP_MARKER="$MARKER_DIR/07_finalize.done"
+mkdir -p "$MARKER_DIR"
+
+# === Skip if already completed ===
+if [ -f "$STEP_MARKER" ]; then
+  echo -e "\e[91m✅ [07] Finalization already completed. Skipping...\e[0m"
   exit 0
 fi
 
-echo "🎯 Finalizing setup..."
+# === Final messages ===
+echo -e "\e[91m✅ Demos Node is now fully installed and running as a systemd service.\e[0m"
+echo -e "\e[91mYou can manage it using the helper tools installed:\e[0m"
+echo -e "\e[91m🔍 Check status:\e[0m"
+echo -e "\e[91mcheck_demos_node --status\e[0m"
+echo -e "\e[91m🔄 Restart node:\e[0m"
+echo -e "\e[91mrestart_demos_node\e[0m"
+echo -e "\e[91m📦 View logs:\e[0m"
+echo -e "\e[91msudo journalctl -u demos-node --no-pager --since \"10 minutes ago\"\e[0m"
 
-# Optional cleanup or environment tweaks can go here
-echo "🧹 Cleaning up temporary files..."
-rm -rf /tmp/* || true
-
-echo "📋 Summary of setup:"
-ls /root/.demos_node_setup
-
-echo "🟢 Setup complete. You may now use your node and helper commands."
-
-touch "$MARKER"
-
-# Optional reboot prompt
-read -p "🔁 Reboot now to finalize environment? (y/N): " REBOOT
-if [[ "$REBOOT" =~ ^[Yy]$ ]]; then
-  echo "♻️ Rebooting..."
-  reboot
-else
-  echo "🚪 You can reboot later manually if needed."
-fi
+touch "$STEP_MARKER"
