@@ -1,13 +1,23 @@
 #!/bin/bash
 # This helper script performs a detailed health check on the Demos Node systemd service.
-# It explains the current status, PID, and optionally checks the HTTP endpoint.
+# It explains the current status, PID, and checks the HTTP endpoint using .env configuration.
 
 set -u
 IFS=$'\n\t'
 
 SERVICE_NAME="demos-node"
 UNIT_NAME="${SERVICE_NAME}.service"
-HTTP_ENDPOINT="http://localhost:8080/health"  # Optional: adjust if your node exposes a health route
+
+# === Load .env variables ===
+ENV_FILE="/opt/demos-node/.env"
+if [ -f "$ENV_FILE" ]; then
+  export $(grep -E '^(NODE_PORT|EXPOSED_URL)=' "$ENV_FILE" | xargs)
+else
+  NODE_PORT=53550
+  EXPOSED_URL="http://localhost:$NODE_PORT"
+fi
+
+HTTP_ENDPOINT="${EXPOSED_URL}/health"
 
 echo -e "\e[91m🔍 Starting full health check for Demos Node service: $SERVICE_NAME\e[0m"
 
@@ -73,7 +83,7 @@ else
   echo -e "\e[91m⚠️ No active process found. The service may be stopped or failed.\e[0m"
 fi
 
-# === Optional HTTP health check ===
+# === HTTP health check ===
 echo -e "\e[91m🌐 Checking HTTP endpoint: $HTTP_ENDPOINT\e[0m"
 if curl -fs "$HTTP_ENDPOINT" &>/dev/null; then
   echo -e "\e[91m✅ HTTP endpoint is responsive.\e[0m"
