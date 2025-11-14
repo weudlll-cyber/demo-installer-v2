@@ -34,6 +34,7 @@ if [ ! -f "$MARKER_DIR/01_dns_check.done" ]; then
     sleep 5
   done
   touch "$MARKER_DIR/01_dns_check.done"
+  echo -e "\e[91m✅ GitHub DNS resolved.\e[0m"
 else
   echo -e "\e[91m[STEP 01] Already completed.\e[0m"
 fi
@@ -41,11 +42,15 @@ fi
 # === STEP 02: Install Docker ===
 if [ ! -f "$MARKER_DIR/02_install_docker.done" ]; then
   echo -e "\e[91m[STEP 02] Installing Docker...\e[0m"
-  apt-get update
-  apt-get install -y docker.io
-  systemctl enable docker
-  systemctl start docker
-  touch "$MARKER_DIR/02_install_docker.done"
+  apt-get update && apt-get install -y docker.io
+  systemctl enable docker && systemctl start docker
+  if command -v docker >/dev/null 2>&1; then
+    touch "$MARKER_DIR/02_install_docker.done"
+    echo -e "\e[91m✅ Docker installed successfully.\e[0m"
+  else
+    echo -e "\e[91m❌ Docker installation failed.\e[0m"
+    exit 1
+  fi
 else
   echo -e "\e[91m[STEP 02] Already completed.\e[0m"
 fi
@@ -59,8 +64,13 @@ if [ ! -f "$MARKER_DIR/03_install_bun.done" ]; then
   export PATH="$BUN_INSTALL/bin:$PATH"
   echo 'export BUN_INSTALL="$HOME/.bun"' >> ~/.bashrc
   echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> ~/.bashrc
-  # Do not source ~/.bashrc here to avoid PS1 warnings in non-interactive shells
-  touch "$MARKER_DIR/03_install_bun.done"
+  if [ -x "$HOME/.bun/bin/bun" ]; then
+    touch "$MARKER_DIR/03_install_bun.done"
+    echo -e "\e[91m✅ Bun installed successfully.\e[0m"
+  else
+    echo -e "\e[91m❌ Bun installation failed.\e[0m"
+    exit 1
+  fi
 else
   echo -e "\e[91m[STEP 03] Already completed.\e[0m"
 fi
@@ -75,14 +85,14 @@ if [ ! -f "$MARKER_DIR/04_clone_repo.done" ]; then
     git clone https://github.com/kynesyslabs/node.git /opt/demos-node
   fi
   cd /opt/demos-node
-  # Use installed bun binary without relying on sourcing .bashrc
-  if [ -x "$HOME/.bun/bin/bun" ]; then
-    "$HOME/.bun/bin/bun" install
+  bun install
+  if [ -f "run" ]; then
+    touch "$MARKER_DIR/04_clone_repo.done"
+    echo -e "\e[91m✅ Repository cloned and dependencies installed.\e[0m"
   else
-    echo -e "\e[91mBun not found in $HOME/.bun/bin; attempting to run 'bun' from PATH.\e[0m"
-    bun install
+    echo -e "\e[91m❌ Node repo setup failed.\e[0m"
+    exit 1
   fi
-  touch "$MARKER_DIR/04_clone_repo.done"
 else
   echo -e "\e[91m[STEP 04] Already completed.\e[0m"
 fi
@@ -101,6 +111,7 @@ Restart=always
 User=root
 Environment=NODE_ENV=production
 WorkingDirectory=/opt/demos-node
+Environment=PATH=/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 [Install]
 WantedBy=multi-user.target
@@ -109,7 +120,14 @@ EOF
   systemctl daemon-reload
   systemctl enable demos-node.service
   systemctl start demos-node.service
-  touch "$MARKER_DIR/05_systemd_service.done"
+  sleep 2
+  if systemctl is-active --quiet demos-node.service; then
+    touch "$MARKER_DIR/05_systemd_service.done"
+    echo -e "\e[91m✅ Demos Node service is running.\e[0m"
+  else
+    echo -e "\e[91m❌ Demos Node service failed to start.\e[0m"
+    exit 1
+  fi
 else
   echo -e "\e[91m[STEP 05] Already completed.\e[0m"
 fi
@@ -117,8 +135,13 @@ fi
 # === STEP 06: Install Helper Scripts ===
 if [ ! -f "$MARKER_DIR/06_install_helpers.done" ]; then
   echo -e "\e[91m[STEP 06] Installing helper scripts...\e[0m"
-  bash <(curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh)
-  touch "$MARKER_DIR/06_install_helpers.done"
+  if curl -fsSL https://raw.githubusercontent.com/weudlll-cyber/demos-installer-v2/main/install_helpers_v1.sh | bash; then
+    touch "$MARKER_DIR/06_install_helpers.done"
+    echo -e "\e[91m✅ Helper scripts installed.\e[0m"
+  else
+    echo -e "\e[91m❌ Failed to install helper scripts.\e[0m"
+    exit 1
+  fi
 else
   echo -e "\e[91m[STEP 06] Already completed.\e[0m"
 fi
