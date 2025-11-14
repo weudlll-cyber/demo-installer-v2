@@ -42,14 +42,24 @@ curl -fsSL https://bun.sh/install | bash || {
 export BUN_INSTALL="${HOME:-/root}/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# === Add to shell profile ===
-echo 'export BUN_INSTALL="${HOME:-/root}/.bun"' >> ~/.bashrc
-echo 'export PATH="${BUN_INSTALL}/bin:$PATH"' >> ~/.bashrc
+# === Add to shell profile if not already present ===
+if ! grep -q 'BUN_INSTALL' ~/.bashrc; then
+  echo 'export BUN_INSTALL="${HOME:-/root}/.bun"' >> ~/.bashrc
+  echo 'export PATH="${BUN_INSTALL}/bin:$PATH"' >> ~/.bashrc
+fi
 
 # === Add to system-wide profile for services ===
 echo 'export BUN_INSTALL="/root/.bun"' > /etc/profile.d/bun.sh
 echo 'export PATH="/root/.bun/bin:$PATH"' >> /etc/profile.d/bun.sh
 chmod +x /etc/profile.d/bun.sh
+
+# === Add to /etc/environment for systemd ===
+if ! grep -q '/root/.bun/bin' /etc/environment; then
+  echo 'PATH="/root/.bun/bin:'"$PATH"'"' >> /etc/environment
+fi
+
+# === Reload systemd environment ===
+systemctl daemon-reexec
 
 # === Verify Bun ===
 echo -e "\e[91m🔍 Verifying Bun installation...\e[0m"
@@ -58,5 +68,7 @@ if command -v bun &>/dev/null; then
   touch "$STEP_MARKER"
 else
   echo -e "\e[91m❌ Bun is not available in PATH after installation.\e[0m"
+  echo -e "\e[91mTry running:\e[0m"
+  echo -e "\e[91mexport PATH=\"${HOME:-/root}/.bun/bin:\$PATH\"\e[0m"
   exit 1
 fi
