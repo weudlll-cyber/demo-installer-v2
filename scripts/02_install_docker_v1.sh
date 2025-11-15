@@ -1,6 +1,5 @@
 #!/bin/bash
-# This script installs Docker if it's not already present and ensures it's running.
-# Docker is required to run containerized services used by Demos Node.
+# This script installs Docker and Docker Compose plugin if not already present and ensures Docker is running.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -67,7 +66,6 @@ systemctl enable docker && systemctl start docker || {
 echo -e "\e[91m🔍 Verifying Docker service status...\e[0m"
 if systemctl is-active --quiet docker; then
   echo -e "\e[91m✅ Docker service is running.\e[0m"
-  touch "$STEP_MARKER"
 else
   echo -e "\e[91m❌ Docker service is not active.\e[0m"
   echo -e "\e[91mRun manually:\e[0m"
@@ -76,3 +74,28 @@ else
   echo -e "\e[91msudo bash demos_node_setup_v1.sh\e[0m"
   exit 1
 fi
+
+# === Install Docker Compose plugin ===
+echo -e "\e[91m🔧 Checking for Docker Compose plugin...\e[0m"
+
+if docker compose version &>/dev/null; then
+  echo -e "\e[91m✅ Docker Compose plugin is already installed.\e[0m"
+else
+  echo -e "\e[91m📦 Docker Compose plugin not found. Installing manually...\e[0m"
+
+  mkdir -p ~/.docker/cli-plugins
+  curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+  chmod +x ~/.docker/cli-plugins/docker-compose
+
+  if docker compose version &>/dev/null; then
+    echo -e "\e[91m✅ Docker Compose plugin installed successfully.\e[0m"
+  else
+    echo -e "\e[91m❌ Failed to install Docker Compose plugin.\e[0m"
+    echo -e "\e[91mRun manually:\e[0m"
+    echo -e "\e[91mcurl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose && chmod +x ~/.docker/cli-plugins/docker-compose\e[0m"
+    exit 1
+  fi
+fi
+
+# === Mark step complete ===
+touch "$STEP_MARKER"
